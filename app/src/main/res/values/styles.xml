@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/btn_operator</item>
+        <item name="colorPrimaryVariant">@color/btn_operator</item>
+        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="android:windowBackground">@color/bg_dark</item>
+        <item name="android:statusBarColor">@color/bg_dark</item>
+        <item name="android:navigationBarColor">@color/bg_dark</item>
+    </style>
+    <style name="CalcButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_margin">6dp</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="backgroundTint">@color/btn_number</item>
+        <item name="rippleColor">@color/ripple_dark</item>
+        <item name="cornerRadius">50dp</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:elevation">0dp</item>
+        <item name="app:layout_columnWeight">1</item>
+        <item name="app:layout_rowWeight">1</item>
+        <item name="app:layout_gravity">fill</item>
+    </style>
+    <style name="CalcButton.Operator">
+        <item name="backgroundTint">@color/btn_operator</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="rippleColor">@color/ripple_operator</item>
+    </style>
+    <style name="CalcButton.Secondary">
+        <item name="backgroundTint">@color/btn_secondary</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+    <style name="CalcButton.Equals" parent="CalcButton.Operator"/>
+    <style name="CalcButton.Wide" parent="CalcButton">
+        <item name="app:layout_columnWeight">2</item>
+        <item name="android:gravity">center_vertical|start</item>
+        <item name="android:paddingStart">32dp</item>
+    </style>
+</resources>
