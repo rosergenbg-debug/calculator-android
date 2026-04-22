@@ -12,7 +12,7 @@
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">0dp</item>
         <item name="android:layout_margin">6dp</item>
-        <item name="android:textSize">26sp</item>
+        <item name="android:textSize">24sp</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="backgroundTint">@color/btn_number</item>
         <item name="rippleColor">@color/ripple_dark</item>
@@ -22,13 +22,11 @@
     </style>
     <style name="CalcButton.Operator">
         <item name="backgroundTint">@color/btn_operator</item>
-        <item name="android:textColor">@color/text_primary</item>
         <item name="rippleColor">@color/ripple_operator</item>
     </style>
     <style name="CalcButton.Secondary">
         <item name="backgroundTint">@color/btn_secondary</item>
-        <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">22sp</item>
+        <item name="android:textSize">20sp</item>
     </style>
     <style name="CalcButton.Equals" parent="CalcButton.Operator"/>
     <style name="CalcButton.Wide" parent="CalcButton">
