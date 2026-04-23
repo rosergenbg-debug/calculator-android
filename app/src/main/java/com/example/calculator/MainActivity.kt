@@ -1,68 +1,87 @@
 package com.example.calculator
 
 import android.os.Bundle
-import android.widget.Button
+import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import java.text.DecimalFormat
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var display: TextView
-    private var expression = ""
+    private lateinit var tvDisplay: TextView
+    private lateinit var tvExpression: TextView
+    private var currentInput = StringBuilder()
+    private var operator = ""
+    private var firstOperand = 0.0
+    private var isNewInput = false
+    private var hasDecimal = false
+    private val formatter = DecimalFormat("#,##0.##########")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        display = findViewById(R.id.display)
-
-        val buttons = listOf(
-            "0","1","2","3","4","5","6","7","8","9",
-            "+","−","×","÷"
-        )
-
-        buttons.forEach { txt ->
-            val id = resources.getIdentifier("button$txt", "id", packageName)
-            val btn = findViewById<Button?>(id)
-            btn?.setOnClickListener { append(txt) }
-        }
-
-        findViewById<Button>(resources.getIdentifier("button=", "id", packageName))
-            ?.setOnClickListener { calculate() }
-
-        findViewById<Button>(resources.getIdentifier("buttonC", "id", packageName))
-            ?.setOnClickListener { clear() }
+        
+        tvDisplay = findViewById(R.id.tvDisplay)
+        tvExpression = findViewById(R.id.tvExpression)
+        
+        setupButtons()
     }
 
-    private fun append(value: String) {
-        expression += value
-        display.text = expression
+    private fun setupButtons() {
+        // Используем базовый View вместо Button, чтобы избежать ClassCastException
+        val nums = listOf(R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4, R.id.btn5, R.id.btn6, R.id.btn7, R.id.btn8, R.id.btn9)
+        nums.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { onDigit(i.toString()) } }
+        
+        findViewById<View>(R.id.btnDecimal).setOnClickListener { onDecimal() }
+        findViewById<View>(R.id.btnPlus).setOnClickListener { onOperator("+") }
+        findViewById<View>(R.id.btnMinus).setOnClickListener { onOperator("−") }
+        findViewById<View>(R.id.btnMultiply).setOnClickListener { onOperator("×") }
+        findViewById<View>(R.id.btnDivide).setOnClickListener { onOperator("÷") }
+        findViewById<View>(R.id.btnEquals).setOnClickListener { onEquals() }
+        findViewById<View>(R.id.btnClear).setOnClickListener { onClear() }
+        findViewById<View>(R.id.btnSign).setOnClickListener { onToggleSign() }
+        findViewById<View>(R.id.btnPercent).setOnClickListener { onPercent() }
     }
 
-    private fun calculate() {
-        try {
-            val exp = expression
-                .replace("×", "*")
-                .replace("÷", "/")
-                .replace("−", "-")
-
-            val result = eval(exp)
-            display.text = result.toString()
-            expression = result.toString()
-        } catch (e: Exception) {
-            display.text = "Error"
-            expression = ""
-        }
+    private fun onDigit(digit: String) {
+        if (isNewInput) { currentInput.clear(); hasDecimal = false; isNewInput = false }
+        if (currentInput.toString() == "0" && digit != ".") currentInput.clear()
+        currentInput.append(digit)
+        tvDisplay.text = currentInput.toString()
     }
 
-    private fun clear() {
-        expression = ""
-        display.text = "0"
+    private fun onDecimal() {
+        if (isNewInput) { currentInput.clear(); currentInput.append("0"); isNewInput = false; hasDecimal = false }
+        if (!hasDecimal) { if (currentInput.isEmpty()) currentInput.append("0"); currentInput.append("."); hasDecimal = true; tvDisplay.text = currentInput.toString() }
     }
 
-    private fun eval(str: String): Double {
-        return javax.script.ScriptEngineManager()
-            .getEngineByName("rhino")
-            .eval(str).toString().toDouble()
+    private fun onOperator(op: String) {
+        val current = currentInput.toString().toDoubleOrNull() ?: 0.0
+        if (operator.isNotEmpty() && !isNewInput) {
+            firstOperand = calculate(firstOperand, current, operator)
+            tvExpression.text = "${fmt(firstOperand)} $op"
+            tvDisplay.text = fmt(firstOperand)
+        } else { firstOperand = current; tvExpression.text = "${fmt(firstOperand)} $op" }
+        operator = op; isNewInput = true; hasDecimal = false
     }
+
+    private fun onEquals() {
+        if (operator.isEmpty()) return
+        val second = currentInput.toString().toDoubleOrNull() ?: return
+        val result = calculate(firstOperand, second, operator)
+        tvExpression.text = "${tvExpression.text} ${fmt(second)} ="
+        tvDisplay.text = fmt(result)
+        currentInput.clear(); currentInput.append(fmtRaw(result))
+        operator = ""; isNewInput = true; hasDecimal = fmtRaw(result).contains(".")
+    }
+
+    private fun calculate(a: Double, b: Double, op: String) = when(op) {
+        "+" -> a + b; "−" -> a - b; "×" -> a * b
+        "÷" -> if (b != 0.0) a / b else Double.NaN; else -> b
+    }
+
+    private fun onClear() { currentInput.clear(); operator = ""; firstOperand = 0.0; isNewInput = false; hasDecimal = false; tvDisplay.text = "0"; tvExpression.text = "" }
+    private fun onToggleSign() { val v = currentInput.toString().toDoubleOrNull() ?: return; currentInput.clear(); currentInput.append(fmtRaw(-v)); hasDecimal = currentInput.contains("."); tvDisplay.text = currentInput.toString() }
+    private fun onPercent() { val v = currentInput.toString().toDoubleOrNull() ?: return; currentInput.clear(); currentInput.append(fmtRaw(v/100)); hasDecimal = currentInput.contains("."); tvDisplay.text = currentInput.toString() }
+    private fun fmt(v: Double) = if (v.isNaN()) "Ошибка" else formatter.format(v)
+    private fun fmtRaw(v: Double) = if (v.isNaN()) "0" else if (v == kotlin.math.floor(v) && !v.isInfinite()) v.toLong().toString() else v.toString()
 }
