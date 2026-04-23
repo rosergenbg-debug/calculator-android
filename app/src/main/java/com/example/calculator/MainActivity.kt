@@ -8,10 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private lateinit var display: TextView
-
-    private var first = 0.0
-    private var operator = ""
-    private var newInput = true
+    private var expression = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -20,59 +17,52 @@ class MainActivity : AppCompatActivity() {
         display = findViewById(R.id.display)
 
         val buttons = listOf(
-            R.id.btn0,R.id.btn1,R.id.btn2,R.id.btn3,R.id.btn4,
-            R.id.btn5,R.id.btn6,R.id.btn7,R.id.btn8,R.id.btn9
+            "0","1","2","3","4","5","6","7","8","9",
+            "+","−","×","÷"
         )
 
-        buttons.forEach { id ->
-            findViewById<Button>(id).setOnClickListener {
-                pressNumber((it as Button).text.toString())
-            }
+        buttons.forEach { txt ->
+            val id = resources.getIdentifier("button$txt", "id", packageName)
+            val btn = findViewById<Button?>(id)
+            btn?.setOnClickListener { append(txt) }
         }
 
-        findViewById<Button>(R.id.btnAdd).setOnClickListener { setOp("+") }
-        findViewById<Button>(R.id.btnSub).setOnClickListener { setOp("-") }
-        findViewById<Button>(R.id.btnMul).setOnClickListener { setOp("×") }
-        findViewById<Button>(R.id.btnDiv).setOnClickListener { setOp("÷") }
+        findViewById<Button>(resources.getIdentifier("button=", "id", packageName))
+            ?.setOnClickListener { calculate() }
 
-        findViewById<Button>(R.id.btnEq).setOnClickListener { calculate() }
-        findViewById<Button>(R.id.btnC).setOnClickListener { clear() }
+        findViewById<Button>(resources.getIdentifier("buttonC", "id", packageName))
+            ?.setOnClickListener { clear() }
     }
 
-    private fun pressNumber(num: String) {
-        if (newInput) {
-            display.text = num
-            newInput = false
-        } else {
-            display.append(num)
-        }
-    }
-
-    private fun setOp(op: String) {
-        first = display.text.toString().toDouble()
-        operator = op
-        newInput = true
+    private fun append(value: String) {
+        expression += value
+        display.text = expression
     }
 
     private fun calculate() {
-        val second = display.text.toString().toDouble()
+        try {
+            val exp = expression
+                .replace("×", "*")
+                .replace("÷", "/")
+                .replace("−", "-")
 
-        val result = when (operator) {
-            "+" -> first + second
-            "-" -> first - second
-            "×" -> first * second
-            "÷" -> if (second != 0.0) first / second else 0.0
-            else -> second
+            val result = eval(exp)
+            display.text = result.toString()
+            expression = result.toString()
+        } catch (e: Exception) {
+            display.text = "Error"
+            expression = ""
         }
-
-        display.text = result.toString()
-        newInput = true
     }
 
     private fun clear() {
+        expression = ""
         display.text = "0"
-        first = 0.0
-        operator = ""
-        newInput = true
+    }
+
+    private fun eval(str: String): Double {
+        return javax.script.ScriptEngineManager()
+            .getEngineByName("rhino")
+            .eval(str).toString().toDouble()
     }
 }

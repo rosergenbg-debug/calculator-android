@@ -32,3 +32,31 @@
         <item name="android:paddingStart">24dp</item>
     </style>
 </resources>
+
+<style name="btn">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">80dp</item>
+    <item name="android:layout_columnWeight">1</item>
+    <item name="android:background">@drawable/btn_round</item>
+    <item name="android:textColor">#FFFFFF</item>
+    <item name="android:textSize">22sp</item>
+</style>
+
+<style name="btnOp">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">80dp</item>
+    <item name="android:layout_columnWeight">1</item>
+    <item name="android:background">@drawable/btn_round</item>
+    <item name="android:textColor">#FF9500</item>
+    <item name="android:textSize">22sp</item>
+</style>
+
+<style name="btnGray">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">80dp</item>
+    <item name="android:layout_columnWeight">1</item>
+    <item name="android:background">@drawable/btn_round</item>
+    <item name="android:textColor">#AAAAAA</item>
+    <item name="android:textSize">22sp</item>
+</style>
+
