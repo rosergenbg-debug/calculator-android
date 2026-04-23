@@ -1,21 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+On branch main
+Your branch is up to date with 'origin/main'.
 
-    <application
-        android:allowBackup="true"
-        android:icon="@drawable/ic_launcher_calc"
-        android:label="Calculator"
-        android:roundIcon="@drawable/ic_launcher_calc"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.CalculatorApp">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   app/src/main/AndroidManifest.xml
 
-</manifest>
+no changes added to commit (use "git add" and/or "git commit -a")
