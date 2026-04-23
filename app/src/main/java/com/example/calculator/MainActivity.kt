@@ -13,6 +13,7 @@ class MainActivity : AppCompatActivity() {
     private var operator = ""
     private var secondNum = ""
     private var isResult = false
+    private var lastExpression = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,20 +22,26 @@ class MainActivity : AppCompatActivity() {
         tvDisplay = findViewById(R.id.tvDisplay)
         tvExpression = findViewById(R.id.tvExpression)
         
-        // Скрываем верхнюю строку, она нам больше не нужна
-        tvExpression.visibility = View.GONE
+        // Включаем верхнюю строку обратно
+        tvExpression.visibility = View.VISIBLE
         updateDisplay()
         
         setupButtons()
     }
 
     private fun updateDisplay() {
-        val opDisplay = if (operator.isNotEmpty()) " $operator " else ""
-        var text = firstNum + opDisplay + secondNum
-        
-        // Меняем системную точку на привычную запятую только для красоты на экране
-        text = text.replace('.', ',')
-        tvDisplay.text = if (text.isEmpty()) "0" else text
+        if (isResult) {
+            // Состояние "после нажатия равно": выражение улетает наверх, внизу только ответ
+            tvExpression.text = lastExpression.replace('.', ',')
+            tvDisplay.text = firstNum.replace('.', ',')
+        } else {
+            // Состояние "ввода": верхняя строка пустая, всё пишется внизу
+            tvExpression.text = ""
+            val opDisplay = if (operator.isNotEmpty()) " $operator " else ""
+            var text = firstNum + opDisplay + secondNum
+            if (text.isEmpty()) text = "0"
+            tvDisplay.text = text.replace('.', ',')
+        }
     }
 
     private fun setupButtons() {
@@ -54,13 +61,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun onDigit(digit: String) {
         if (isResult) {
-            firstNum = ""
+            // Если сразу после ответа вводим цифру — начинаем всё заново
+            firstNum = digit
+            operator = ""
+            secondNum = ""
             isResult = false
-        }
-        if (operator.isEmpty()) {
-            if (firstNum == "0") firstNum = digit else firstNum += digit
         } else {
-            if (secondNum == "0") secondNum = digit else secondNum += digit
+            if (operator.isEmpty()) {
+                if (firstNum == "0") firstNum = digit else firstNum += digit
+            } else {
+                if (secondNum == "0") secondNum = digit else secondNum += digit
+            }
         }
         updateDisplay()
     }
@@ -68,6 +79,8 @@ class MainActivity : AppCompatActivity() {
     private fun onDecimal() {
         if (isResult) {
             firstNum = "0."
+            operator = ""
+            secondNum = ""
             isResult = false
         } else if (operator.isEmpty()) {
             if (firstNum.isEmpty() || firstNum == "-") firstNum += "0."
@@ -81,9 +94,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun onOperator(op: String) {
         if (firstNum.isEmpty() || firstNum == "-") firstNum = "0"
+        
         if (operator.isNotEmpty() && secondNum.isNotEmpty() && secondNum != "-") {
-            onEquals() // Если жмем плюс после выражения (1+2+...), считаем первую часть
+            // Если вводим второй оператор (напр. 5 + 3 +), сразу считаем первую часть
+            calculate()
         }
+        
         operator = op
         isResult = false
         updateDisplay()
@@ -92,6 +108,14 @@ class MainActivity : AppCompatActivity() {
     private fun onEquals() {
         if (firstNum.isEmpty() || operator.isEmpty() || secondNum.isEmpty() || secondNum == "-") return
         
+        // Запоминаем выражение для верхней строки до того, как посчитаем ответ
+        lastExpression = "$firstNum $operator $secondNum ="
+        calculate()
+        isResult = true
+        updateDisplay()
+    }
+
+    private fun calculate() {
         val a = firstNum.toDoubleOrNull() ?: 0.0
         val b = secondNum.toDoubleOrNull() ?: 0.0
         val res = when (operator) {
@@ -101,23 +125,22 @@ class MainActivity : AppCompatActivity() {
             "÷" -> if (b != 0.0) a / b else Double.NaN
             else -> 0.0
         }
-        
         firstNum = if (res.isNaN()) "Ошибка" else formatDouble(res)
         operator = ""
         secondNum = ""
-        isResult = true
-        updateDisplay()
     }
 
     private fun onClear() {
         firstNum = ""
         operator = ""
         secondNum = ""
+        lastExpression = ""
         isResult = false
         updateDisplay()
     }
 
     private fun onSign() {
+        if (isResult) isResult = false 
         if (operator.isEmpty()) {
             if (firstNum.isEmpty()) firstNum = "-"
             else if (firstNum.startsWith("-")) firstNum = firstNum.substring(1)
@@ -131,6 +154,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun onPercent() {
+        if (isResult) isResult = false
         if (operator.isEmpty()) {
             val v = firstNum.toDoubleOrNull() ?: return
             firstNum = formatDouble(v / 100)
@@ -142,9 +166,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun formatDouble(v: Double): String {
+        // Убираем дробную часть, если число целое (5.0 -> 5)
         if (v == kotlin.math.floor(v) && !v.isInfinite()) {
             return v.toLong().toString()
         }
-        return v.toString()
+        val str = v.toString()
+        return if (str.endsWith(".0")) str.dropLast(2) else str
     }
 }
