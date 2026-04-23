@@ -8,9 +8,10 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private lateinit var display: TextView
-    private var current = ""
+
+    private var first = 0.0
     private var operator = ""
-    private var first = ""
+    private var newInput = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -18,57 +19,60 @@ class MainActivity : AppCompatActivity() {
 
         display = findViewById(R.id.display)
 
-        val root = findViewById<android.view.ViewGroup>(android.R.id.content)
-        setListeners(root)
+        val buttons = listOf(
+            R.id.btn0,R.id.btn1,R.id.btn2,R.id.btn3,R.id.btn4,
+            R.id.btn5,R.id.btn6,R.id.btn7,R.id.btn8,R.id.btn9
+        )
+
+        buttons.forEach { id ->
+            findViewById<Button>(id).setOnClickListener {
+                pressNumber((it as Button).text.toString())
+            }
+        }
+
+        findViewById<Button>(R.id.btnAdd).setOnClickListener { setOp("+") }
+        findViewById<Button>(R.id.btnSub).setOnClickListener { setOp("-") }
+        findViewById<Button>(R.id.btnMul).setOnClickListener { setOp("×") }
+        findViewById<Button>(R.id.btnDiv).setOnClickListener { setOp("÷") }
+
+        findViewById<Button>(R.id.btnEq).setOnClickListener { calculate() }
+        findViewById<Button>(R.id.btnC).setOnClickListener { clear() }
     }
 
-    private fun setListeners(view: android.view.View) {
-        if (view is Button) {
-            view.setOnClickListener { handle(view.text.toString()) }
-        } else if (view is android.view.ViewGroup) {
-            for (i in 0 until view.childCount) {
-                setListeners(view.getChildAt(i))
-            }
+    private fun pressNumber(num: String) {
+        if (newInput) {
+            display.text = num
+            newInput = false
+        } else {
+            display.append(num)
         }
     }
 
-    private fun handle(value: String) {
-        when (value) {
-            "C" -> {
-                current = ""
-                first = ""
-                operator = ""
-                display.text = "0"
-            }
-            "+", "-", "×", "÷" -> {
-                first = current
-                operator = value
-                current = ""
-            }
-            "=" -> {
-                val result = calculate()
-                display.text = result
-                current = result
-            }
-            else -> {
-                current += value
-                display.text = current
-            }
-        }
+    private fun setOp(op: String) {
+        first = display.text.toString().toDouble()
+        operator = op
+        newInput = true
     }
 
-    private fun calculate(): String {
-        val a = first.toDoubleOrNull() ?: return "0"
-        val b = current.toDoubleOrNull() ?: return "0"
+    private fun calculate() {
+        val second = display.text.toString().toDouble()
 
-        val res = when (operator) {
-            "+" -> a + b
-            "-" -> a - b
-            "×" -> a * b
-            "÷" -> if (b != 0.0) a / b else 0.0
-            else -> 0.0
+        val result = when (operator) {
+            "+" -> first + second
+            "-" -> first - second
+            "×" -> first * second
+            "÷" -> if (second != 0.0) first / second else 0.0
+            else -> second
         }
 
-        return res.toString()
+        display.text = result.toString()
+        newInput = true
+    }
+
+    private fun clear() {
+        display.text = "0"
+        first = 0.0
+        operator = ""
+        newInput = true
     }
 }
