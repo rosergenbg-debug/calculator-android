@@ -3,11 +3,6 @@
     <color name="bg_dark">#1C1C1E</color>
     <color name="btn_number">#2C2C2E</color>
     <color name="btn_operator">#FF9F0A</color>
-    <color name="btn_secondary">#3A3A3C</color>
-    <color name="btn_equals">#FF9F0A</color>
+    <color name="btn_secondary">#5C5C60</color>
     <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#8E8E93</color>
-    <color name="divider">#3A3A3C</color>
-    <color name="ripple_dark">#40FFFFFF</color>
-    <color name="ripple_operator">#40000000</color>
 </resources>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CalculatorApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/btn_operator</item>
+        <item name="colorPrimaryVariant">@color/btn_operator</item>
+        <item name="colorOnPrimary">@color/text_primary</item>
+        <item name="android:statusBarColor">@color/bg_dark</item>
+        <item name="android:navigationBarColor">@color/bg_dark</item>
+        <item name="android:windowBackground">@color/bg_dark</item>
+    </style>
+
+    <style name="CalcButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_gravity">fill</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="backgroundTint">@color/btn_number</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+
+    <style name="CalcButtonSecondary" parent="CalcButton">
+        <item name="backgroundTint">@color/btn_secondary</item>
+    </style>
+
+    <style name="CalcButtonOperator" parent="CalcButton">
+        <item name="backgroundTint">@color/btn_operator</item>
+    </style>
+
+    <style name="CalcButtonWide" parent="CalcButton">
+        <item name="android:textAlignment">viewStart</item>
+        <item name="android:paddingStart">24dp</item>
+    </style>
+</resources>
