@@ -4,17 +4,15 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import java.text.DecimalFormat
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvDisplay: TextView
     private lateinit var tvExpression: TextView
-    private var currentInput = StringBuilder()
+    
+    private var firstNum = ""
     private var operator = ""
-    private var firstOperand = 0.0
-    private var isNewInput = false
-    private var hasDecimal = false
-    private val formatter = DecimalFormat("#,##0.##########")
+    private var secondNum = ""
+    private var isResult = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,11 +21,23 @@ class MainActivity : AppCompatActivity() {
         tvDisplay = findViewById(R.id.tvDisplay)
         tvExpression = findViewById(R.id.tvExpression)
         
+        // Скрываем верхнюю строку, она нам больше не нужна
+        tvExpression.visibility = View.GONE
+        updateDisplay()
+        
         setupButtons()
     }
 
+    private fun updateDisplay() {
+        val opDisplay = if (operator.isNotEmpty()) " $operator " else ""
+        var text = firstNum + opDisplay + secondNum
+        
+        // Меняем системную точку на привычную запятую только для красоты на экране
+        text = text.replace('.', ',')
+        tvDisplay.text = if (text.isEmpty()) "0" else text
+    }
+
     private fun setupButtons() {
-        // Используем базовый View вместо Button, чтобы избежать ClassCastException
         val nums = listOf(R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4, R.id.btn5, R.id.btn6, R.id.btn7, R.id.btn8, R.id.btn9)
         nums.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { onDigit(i.toString()) } }
         
@@ -38,50 +48,103 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnDivide).setOnClickListener { onOperator("÷") }
         findViewById<View>(R.id.btnEquals).setOnClickListener { onEquals() }
         findViewById<View>(R.id.btnClear).setOnClickListener { onClear() }
-        findViewById<View>(R.id.btnSign).setOnClickListener { onToggleSign() }
+        findViewById<View>(R.id.btnSign).setOnClickListener { onSign() }
         findViewById<View>(R.id.btnPercent).setOnClickListener { onPercent() }
     }
 
     private fun onDigit(digit: String) {
-        if (isNewInput) { currentInput.clear(); hasDecimal = false; isNewInput = false }
-        if (currentInput.toString() == "0" && digit != ".") currentInput.clear()
-        currentInput.append(digit)
-        tvDisplay.text = currentInput.toString()
+        if (isResult) {
+            firstNum = ""
+            isResult = false
+        }
+        if (operator.isEmpty()) {
+            if (firstNum == "0") firstNum = digit else firstNum += digit
+        } else {
+            if (secondNum == "0") secondNum = digit else secondNum += digit
+        }
+        updateDisplay()
     }
 
     private fun onDecimal() {
-        if (isNewInput) { currentInput.clear(); currentInput.append("0"); isNewInput = false; hasDecimal = false }
-        if (!hasDecimal) { if (currentInput.isEmpty()) currentInput.append("0"); currentInput.append("."); hasDecimal = true; tvDisplay.text = currentInput.toString() }
+        if (isResult) {
+            firstNum = "0."
+            isResult = false
+        } else if (operator.isEmpty()) {
+            if (firstNum.isEmpty() || firstNum == "-") firstNum += "0."
+            else if (!firstNum.contains(".")) firstNum += "."
+        } else {
+            if (secondNum.isEmpty() || secondNum == "-") secondNum += "0."
+            else if (!secondNum.contains(".")) secondNum += "."
+        }
+        updateDisplay()
     }
 
     private fun onOperator(op: String) {
-        val current = currentInput.toString().toDoubleOrNull() ?: 0.0
-        if (operator.isNotEmpty() && !isNewInput) {
-            firstOperand = calculate(firstOperand, current, operator)
-            tvExpression.text = "${fmt(firstOperand)} $op"
-            tvDisplay.text = fmt(firstOperand)
-        } else { firstOperand = current; tvExpression.text = "${fmt(firstOperand)} $op" }
-        operator = op; isNewInput = true; hasDecimal = false
+        if (firstNum.isEmpty() || firstNum == "-") firstNum = "0"
+        if (operator.isNotEmpty() && secondNum.isNotEmpty() && secondNum != "-") {
+            onEquals() // Если жмем плюс после выражения (1+2+...), считаем первую часть
+        }
+        operator = op
+        isResult = false
+        updateDisplay()
     }
 
     private fun onEquals() {
-        if (operator.isEmpty()) return
-        val second = currentInput.toString().toDoubleOrNull() ?: return
-        val result = calculate(firstOperand, second, operator)
-        tvExpression.text = "${tvExpression.text} ${fmt(second)} ="
-        tvDisplay.text = fmt(result)
-        currentInput.clear(); currentInput.append(fmtRaw(result))
-        operator = ""; isNewInput = true; hasDecimal = fmtRaw(result).contains(".")
+        if (firstNum.isEmpty() || operator.isEmpty() || secondNum.isEmpty() || secondNum == "-") return
+        
+        val a = firstNum.toDoubleOrNull() ?: 0.0
+        val b = secondNum.toDoubleOrNull() ?: 0.0
+        val res = when (operator) {
+            "+" -> a + b
+            "−", "-" -> a - b
+            "×" -> a * b
+            "÷" -> if (b != 0.0) a / b else Double.NaN
+            else -> 0.0
+        }
+        
+        firstNum = if (res.isNaN()) "Ошибка" else formatDouble(res)
+        operator = ""
+        secondNum = ""
+        isResult = true
+        updateDisplay()
     }
 
-    private fun calculate(a: Double, b: Double, op: String) = when(op) {
-        "+" -> a + b; "−" -> a - b; "×" -> a * b
-        "÷" -> if (b != 0.0) a / b else Double.NaN; else -> b
+    private fun onClear() {
+        firstNum = ""
+        operator = ""
+        secondNum = ""
+        isResult = false
+        updateDisplay()
     }
 
-    private fun onClear() { currentInput.clear(); operator = ""; firstOperand = 0.0; isNewInput = false; hasDecimal = false; tvDisplay.text = "0"; tvExpression.text = "" }
-    private fun onToggleSign() { val v = currentInput.toString().toDoubleOrNull() ?: return; currentInput.clear(); currentInput.append(fmtRaw(-v)); hasDecimal = currentInput.contains("."); tvDisplay.text = currentInput.toString() }
-    private fun onPercent() { val v = currentInput.toString().toDoubleOrNull() ?: return; currentInput.clear(); currentInput.append(fmtRaw(v/100)); hasDecimal = currentInput.contains("."); tvDisplay.text = currentInput.toString() }
-    private fun fmt(v: Double) = if (v.isNaN()) "Ошибка" else formatter.format(v)
-    private fun fmtRaw(v: Double) = if (v.isNaN()) "0" else if (v == kotlin.math.floor(v) && !v.isInfinite()) v.toLong().toString() else v.toString()
+    private fun onSign() {
+        if (operator.isEmpty()) {
+            if (firstNum.isEmpty()) firstNum = "-"
+            else if (firstNum.startsWith("-")) firstNum = firstNum.substring(1)
+            else firstNum = "-$firstNum"
+        } else {
+            if (secondNum.isEmpty()) secondNum = "-"
+            else if (secondNum.startsWith("-")) secondNum = secondNum.substring(1)
+            else secondNum = "-$secondNum"
+        }
+        updateDisplay()
+    }
+
+    private fun onPercent() {
+        if (operator.isEmpty()) {
+            val v = firstNum.toDoubleOrNull() ?: return
+            firstNum = formatDouble(v / 100)
+        } else if (secondNum.isNotEmpty() && secondNum != "-") {
+            val v = secondNum.toDoubleOrNull() ?: return
+            secondNum = formatDouble(v / 100)
+        }
+        updateDisplay()
+    }
+
+    private fun formatDouble(v: Double): String {
+        if (v == kotlin.math.floor(v) && !v.isInfinite()) {
+            return v.toLong().toString()
+        }
+        return v.toString()
+    }
 }
