@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity() {
             renderDisplay() 
             isResultShown = true
         } catch (e: Exception) {
-            tvDisplay.text = "Ошибка"
+            tvDisplay.text = "Fehler"
             fullExpression = "0"
             isResultShown = true
         }
