@@ -82,12 +82,18 @@ class MainActivity : AppCompatActivity() {
         var before = fullExpression.substring(0, pos)
         val after = fullExpression.substring(pos)
         
-        // 1. Защита математических знаков (запрет дублей и замена на лету)
+        // 1. Защита знаков (плюс автоудаление висячей запятой)
         if (text.contains(" ")) { 
             if (before.endsWith(" ")) {
                 before = before.dropLast(3)
                 pos -= 3
-            } else if (before.isEmpty()) {
+            }
+            // Если перед знаком осталась висячая точка - стираем её
+            if (before.endsWith(".")) {
+                before = before.dropLast(1)
+                pos -= 1
+            }
+            if (before.isEmpty()) {
                 before = "0"
                 pos = 1
             }
@@ -104,10 +110,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 3. Защита процентов (нельзя ставить два подряд)
+        // 3. Защита процентов (плюс автоудаление висячей запятой)
         if (text == "%") {
             val lastToken = before.split(" ").last()
             if (lastToken.isEmpty() || lastToken.contains("%")) return
+            
+            // Если перед процентом осталась висячая точка - стираем её
+            if (before.endsWith(".")) {
+                before = before.dropLast(1)
+                pos -= 1
+            }
         }
         
         // 4. Лимит знаков
@@ -165,11 +177,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun onEquals() {
         if (fullExpression.isEmpty() || isResultShown || fullExpression == "0") return
-        val cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
+        var cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
+        // Стираем висячую точку перед нажатием "Равно", если она есть в самом конце
+        if (cleanExpr.endsWith(".")) cleanExpr = cleanExpr.dropLast(1)
         
         try {
             val result = evaluate(cleanExpr)
-            tvExpression.text = "$cleanExpr =" 
+            tvExpression.text = "${cleanExpr.replace('.', ',')} =" 
             fullExpression = formatResult(result)
             renderDisplay(fullExpression.length) 
             isResultShown = true
