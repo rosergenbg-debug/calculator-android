@@ -5,6 +5,8 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvDisplay: TextView
@@ -12,7 +14,10 @@ class MainActivity : AppCompatActivity() {
     
     private var fullExpression = "0"
     private var isResultShown = false
-    private val MAX_DIGITS = 15 // Лимит цифр для одного числа
+    private val MAX_DIGITS = 50 // Новый лимит: 50 цифр на одно число
+    
+    // Внутренняя точность вычислений (до 30 знаков, чтобы не зависнуть на дробях вроде 1/3)
+    private val mathContext = MathContext(30, RoundingMode.HALF_UP)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,10 +63,9 @@ class MainActivity : AppCompatActivity() {
             fullExpression = digit
             isResultShown = false
         } else {
-            // Проверка на лимит цифр в текущем числе
             val tokens = fullExpression.split(" ")
             val lastToken = tokens.last().replace(",", "").replace(".", "")
-            if (lastToken.length >= MAX_DIGITS) return // Блокируем ввод, если цифр слишком много
+            if (lastToken.length >= MAX_DIGITS) return // Блокировка после 50 цифр
 
             if (fullExpression == "0") {
                 fullExpression = digit
@@ -170,9 +174,10 @@ class MainActivity : AppCompatActivity() {
         isResultShown = false
     }
 
-    private fun evaluate(expr: String): Double {
+    // Полностью новое математическое ядро на BigDecimal
+    private fun evaluate(expr: String): BigDecimal {
         val tokens = expr.trim().split(" ").filter { it.isNotEmpty() }
-        if (tokens.isEmpty()) return 0.0
+        if (tokens.isEmpty()) return BigDecimal.ZERO
         
         var result = parseFirstToken(tokens[0])
         var i = 1
@@ -182,21 +187,25 @@ class MainActivity : AppCompatActivity() {
             
             val isPercent = nextStr.endsWith("%")
             val cleanNextStr = nextStr.replace("%", "").replace(',', '.')
-            var nextVal = cleanNextStr.toDoubleOrNull() ?: 0.0
+            var nextVal = try { BigDecimal(cleanNextStr) } catch(e: Exception) { BigDecimal.ZERO }
             
             if (isPercent) {
+                val percentDecimal = nextVal.divide(BigDecimal("100"), mathContext)
                 if (op == "+" || op == "−" || op == "-") {
-                    nextVal = result * (nextVal / 100.0)
+                    nextVal = result.multiply(percentDecimal, mathContext)
                 } else {
-                    nextVal = nextVal / 100.0
+                    nextVal = percentDecimal
                 }
             }
             
             result = when (op) {
-                "+" -> result + nextVal
-                "−", "-" -> result - nextVal
-                "×", "*" -> result * nextVal
-                "÷", "/" -> if (nextVal != 0.0) result / nextVal else throw ArithmeticException("Div by zero")
+                "+" -> result.add(nextVal, mathContext)
+                "−", "-" -> result.subtract(nextVal, mathContext)
+                "×", "*" -> result.multiply(nextVal, mathContext)
+                "÷", "/" -> {
+                    if (nextVal.compareTo(BigDecimal.ZERO) == 0) throw ArithmeticException("Div by zero")
+                    result.divide(nextVal, mathContext)
+                }
                 else -> result
             }
             i += 2
@@ -204,16 +213,17 @@ class MainActivity : AppCompatActivity() {
         return result
     }
 
-    private fun parseFirstToken(token: String): Double {
+    private fun parseFirstToken(token: String): BigDecimal {
         val isPercent = token.endsWith("%")
         val clean = token.replace("%", "").replace(',', '.')
-        val v = clean.toDoubleOrNull() ?: 0.0
-        return if (isPercent) v / 100.0 else v
+        val v = try { BigDecimal(clean) } catch(e: Exception) { BigDecimal.ZERO }
+        return if (isPercent) v.divide(BigDecimal("100"), mathContext) else v
     }
 
-    private fun formatResult(v: Double): String {
-        if (v.isNaN() || v.isInfinite()) throw ArithmeticException("Invalid math")
-        // Преобразуем число в чистую строку без экспоненты (буквы E)
-        return BigDecimal(v.toString()).stripTrailingZeros().toPlainString()
+    private fun formatResult(v: BigDecimal): String {
+        // Убираем лишние нули в конце и переводим в строгий текстовый формат (без буквы E)
+        var resultStr = v.stripTrailingZeros().toPlainString()
+        if (resultStr == "0.0") resultStr = "0"
+        return resultStr
     }
 }
