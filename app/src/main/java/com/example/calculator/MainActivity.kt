@@ -1,6 +1,7 @@
 package com.example.calculator
 
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.widget.EditText
 import android.widget.TextView
@@ -82,13 +83,11 @@ class MainActivity : AppCompatActivity() {
         var before = fullExpression.substring(0, pos)
         val after = fullExpression.substring(pos)
         
-        // 1. Защита знаков (плюс автоудаление висячей запятой)
         if (text.contains(" ")) { 
             if (before.endsWith(" ")) {
                 before = before.dropLast(3)
                 pos -= 3
             }
-            // Если перед знаком осталась висячая точка - стираем её
             if (before.endsWith(".")) {
                 before = before.dropLast(1)
                 pos -= 1
@@ -99,7 +98,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // 2. Защита запятых (только одна на число)
         if (text == ".") {
             val lastToken = before.split(" ").last()
             if (lastToken.contains(".")) return
@@ -110,19 +108,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // 3. Защита процентов (плюс автоудаление висячей запятой)
         if (text == "%") {
             val lastToken = before.split(" ").last()
             if (lastToken.isEmpty() || lastToken.contains("%")) return
-            
-            // Если перед процентом осталась висячая точка - стираем её
             if (before.endsWith(".")) {
                 before = before.dropLast(1)
                 pos -= 1
             }
         }
         
-        // 4. Лимит знаков
         if (text.matches(Regex("[0-9]"))) {
             val lastTokenBefore = before.split(" ").last()
             val firstTokenAfter = after.split(" ").firstOrNull() ?: ""
@@ -161,9 +155,19 @@ class MainActivity : AppCompatActivity() {
         renderDisplay(pos - charsToDelete)
     }
 
+    // Здесь мы жестко контролируем размер шрифта
     private fun renderDisplay(newCursorPos: Int? = null) {
         val currentCursor = getCursorPos()
         val displayStr = fullExpression.replace('.', ',')
+        
+        // Масштабирование в зависимости от длины текста
+        val len = displayStr.length
+        when {
+            len <= 8 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f)
+            len <= 15 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48f)
+            len <= 25 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f)
+            else -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+        }
         
         tvDisplay.setText(displayStr)
         
@@ -178,7 +182,6 @@ class MainActivity : AppCompatActivity() {
     private fun onEquals() {
         if (fullExpression.isEmpty() || isResultShown || fullExpression == "0") return
         var cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
-        // Стираем висячую точку перед нажатием "Равно", если она есть в самом конце
         if (cleanExpr.endsWith(".")) cleanExpr = cleanExpr.dropLast(1)
         
         try {
