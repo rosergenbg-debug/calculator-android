@@ -41,15 +41,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnEquals).setOnClickListener { onEquals() }
         findViewById<View>(R.id.btnClear).setOnClickListener { onClear() }
         
-        // Пока оставим эти функции простыми для стабильности
-        findViewById<View>(R.id.btnSign).setOnClickListener { /* Смена знака в строке — сложная логика, пока пропустим */ }
+        // Оживляем кнопки смены знака и процента
+        findViewById<View>(R.id.btnSign).setOnClickListener { onSign() }
         findViewById<View>(R.id.btnPercent).setOnClickListener { appendSymbol("%") }
     }
 
     private fun appendSymbol(symbol: String) {
         if (isResultShown) {
-            // Если только что был показан результат и мы нажали цифру — стираем всё
-            // Если нажали оператор — продолжаем считать от результата
             if (symbol.contains(Regex("[0-9]"))) {
                 fullExpression = symbol
             } else {
@@ -63,7 +61,7 @@ class MainActivity : AppCompatActivity() {
                 fullExpression += symbol
             }
         }
-        tvExpression.text = "" // Очищаем верх при новом вводе
+        tvExpression.text = "" 
         renderDisplay()
     }
 
@@ -77,9 +75,9 @@ class MainActivity : AppCompatActivity() {
         
         try {
             val result = evaluate(fullExpression)
-            tvExpression.text = "$fullExpression =" // Выражение улетает вверх
+            tvExpression.text = "$fullExpression =" 
             fullExpression = formatResult(result)
-            renderDisplay() // Результат становится большим внизу
+            renderDisplay() 
             isResultShown = true
         } catch (e: Exception) {
             tvDisplay.text = "Ошибка"
@@ -94,26 +92,80 @@ class MainActivity : AppCompatActivity() {
         isResultShown = false
     }
 
-    // Простой парсер для вычисления строки
+    private fun onSign() {
+        if (isResultShown) {
+            val current = tvDisplay.text.toString().replace(',', '.').toDoubleOrNull() ?: 0.0
+            fullExpression = formatResult(current * -1)
+            isResultShown = false
+            renderDisplay()
+            return
+        }
+        
+        if (fullExpression.isEmpty()) {
+            fullExpression = "-"
+            renderDisplay()
+            return
+        }
+        
+        val tokens = fullExpression.split(" ").toMutableList()
+        val lastToken = tokens.last()
+        
+        if (lastToken.isNotEmpty() && !lastToken.matches(Regex("[+−×÷]"))) {
+            if (lastToken.startsWith("-")) {
+                tokens[tokens.lastIndex] = lastToken.substring(1)
+            } else {
+                tokens[tokens.lastIndex] = "-$lastToken"
+            }
+            fullExpression = tokens.joinToString(" ")
+            renderDisplay()
+        } else if (lastToken.isEmpty() || lastToken.matches(Regex("[+−×÷]"))) {
+            fullExpression += "-"
+            renderDisplay()
+        }
+    }
+
+    // Умный парсер, который понимает логику карманных калькуляторов
     private fun evaluate(expr: String): Double {
-        val tokens = expr.trim().split(" ")
+        val tokens = expr.trim().split(" ").filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return 0.0
         
-        var result = tokens[0].replace(',', '.').toDoubleOrNull() ?: 0.0
+        var result = parseFirstToken(tokens[0])
         var i = 1
         while (i < tokens.size) {
             val op = tokens[i]
-            val nextVal = tokens.getOrNull(i + 1)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
+            val nextStr = tokens.getOrNull(i + 1) ?: "0"
+            
+            val isPercent = nextStr.endsWith("%")
+            val cleanNextStr = nextStr.replace("%", "").replace(',', '.')
+            var nextVal = cleanNextStr.toDoubleOrNull() ?: 0.0
+            
+            if (isPercent) {
+                if (op == "+" || op == "−" || op == "-") {
+                    // Прибавляем/вычитаем процент от ТЕКУЩЕГО результата
+                    nextVal = result * (nextVal / 100.0)
+                } else {
+                    // Умножаем/делим просто на процентную долю
+                    nextVal = nextVal / 100.0
+                }
+            }
+            
             result = when (op) {
                 "+" -> result + nextVal
-                "−" -> result - nextVal
-                "×" -> result * nextVal
-                "÷" -> if (nextVal != 0.0) result / nextVal else Double.NaN
+                "−", "-" -> result - nextVal
+                "×", "*" -> result * nextVal
+                "÷", "/" -> if (nextVal != 0.0) result / nextVal else Double.NaN
                 else -> result
             }
             i += 2
         }
         return result
+    }
+
+    private fun parseFirstToken(token: String): Double {
+        val isPercent = token.endsWith("%")
+        val clean = token.replace("%", "").replace(',', '.')
+        val v = clean.toDoubleOrNull() ?: 0.0
+        return if (isPercent) v / 100.0 else v
     }
 
     private fun formatResult(v: Double): String {
