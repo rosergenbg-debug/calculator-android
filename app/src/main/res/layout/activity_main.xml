@@ -21,6 +21,7 @@
         android:textSize="64sp"
         android:background="@null"
         android:cursorVisible="true"
+        android:textCursorDrawable="@drawable/red_cursor"
         app:autoSizeTextType="uniform"
         app:autoSizeMinTextSize="28sp"
         app:autoSizeMaxTextSize="64sp"

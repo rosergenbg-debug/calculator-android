@@ -15,6 +15,7 @@ class MainActivity : AppCompatActivity() {
     
     private var fullExpression = "0"
     private var isResultShown = false
+    private val MAX_DIGITS = 50
     private val mathContext = MathContext(30, RoundingMode.HALF_UP)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,7 +25,6 @@ class MainActivity : AppCompatActivity() {
         tvDisplay = findViewById(R.id.tvDisplay)
         tvExpression = findViewById(R.id.tvExpression)
         
-        // Гарантированно отключаем системную клавиатуру
         tvDisplay.showSoftInputOnFocus = false
         
         tvExpression.text = ""
@@ -61,12 +61,11 @@ class MainActivity : AppCompatActivity() {
         if (tvDisplay.text.toString() == "Fehler") onClear()
     }
 
-    // Универсальная функция вставки в место курсора
     private fun insertText(text: String) {
         checkErrorState()
         
         if (isResultShown) {
-            fullExpression = if (text.contains(Regex("[0-9]"))) text else fullExpression + text
+            fullExpression = if (text.matches(Regex(".*[0-9].*"))) text else fullExpression + text
             isResultShown = false
             renderDisplay(fullExpression.length)
             return
@@ -74,17 +73,51 @@ class MainActivity : AppCompatActivity() {
 
         var pos = getCursorPos()
         
-        // Если на экране только "0" и мы вводим цифру, заменяем этот ноль
         if (fullExpression == "0" && text.matches(Regex("[0-9]"))) {
             fullExpression = text
             renderDisplay(text.length)
             return
         }
 
-        // Разрезаем строку по курсору и вставляем новый кусок
-        val before = fullExpression.substring(0, pos)
+        var before = fullExpression.substring(0, pos)
         val after = fullExpression.substring(pos)
         
+        // 1. Защита математических знаков (запрет дублей и замена на лету)
+        if (text.contains(" ")) { 
+            if (before.endsWith(" ")) {
+                before = before.dropLast(3)
+                pos -= 3
+            } else if (before.isEmpty()) {
+                before = "0"
+                pos = 1
+            }
+        }
+        
+        // 2. Защита запятых (только одна на число)
+        if (text == ".") {
+            val lastToken = before.split(" ").last()
+            if (lastToken.contains(".")) return
+            if (lastToken.isEmpty()) {
+                fullExpression = before + "0." + after
+                renderDisplay(pos + 2)
+                return
+            }
+        }
+
+        // 3. Защита процентов (нельзя ставить два подряд)
+        if (text == "%") {
+            val lastToken = before.split(" ").last()
+            if (lastToken.isEmpty() || lastToken.contains("%")) return
+        }
+        
+        // 4. Лимит знаков
+        if (text.matches(Regex("[0-9]"))) {
+            val lastTokenBefore = before.split(" ").last()
+            val firstTokenAfter = after.split(" ").firstOrNull() ?: ""
+            val fullCurrentNumber = (lastTokenBefore + firstTokenAfter).replace(".", "").replace("%", "")
+            if (fullCurrentNumber.length >= MAX_DIGITS) return
+        }
+
         fullExpression = before + text + after
         renderDisplay(pos + text.length)
     }
@@ -97,11 +130,9 @@ class MainActivity : AppCompatActivity() {
         }
         
         val pos = getCursorPos()
-        if (pos == 0) return // Нечего удалять, курсор в самом начале
+        if (pos == 0) return 
 
         var charsToDelete = 1
-        
-        // Умное удаление: если перед курсором стоит оператор с пробелами, стираем его целиком (3 символа)
         if (pos >= 3) {
             val last3 = fullExpression.substring(pos - 3, pos)
             if (last3 == " + " || last3 == " − " || last3 == " × " || last3 == " ÷ ") {
@@ -125,7 +156,6 @@ class MainActivity : AppCompatActivity() {
         tvDisplay.setText(displayStr)
         
         val finalPos = newCursorPos ?: currentCursor
-        // Защита от выхода курсора за пределы строки
         if (finalPos in 0..displayStr.length) {
             tvDisplay.setSelection(finalPos)
         } else {
@@ -158,7 +188,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun evaluate(expr: String): BigDecimal {
-        // Парсер математики остался прежним (работает через BigDecimal)
         val tokens = expr.trim().split(" ").filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return BigDecimal.ZERO
         
