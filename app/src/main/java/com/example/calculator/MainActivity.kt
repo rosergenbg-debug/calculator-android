@@ -2,6 +2,7 @@ package com.example.calculator
 
 import android.os.Bundle
 import android.view.View
+import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import java.math.BigDecimal
@@ -9,14 +10,11 @@ import java.math.MathContext
 import java.math.RoundingMode
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var tvDisplay: TextView
+    private lateinit var tvDisplay: EditText
     private lateinit var tvExpression: TextView
     
     private var fullExpression = "0"
     private var isResultShown = false
-    private val MAX_DIGITS = 50 // Новый лимит: 50 цифр на одно число
-    
-    // Внутренняя точность вычислений (до 30 знаков, чтобы не зависнуть на дробях вроде 1/3)
     private val mathContext = MathContext(30, RoundingMode.HALF_UP)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,6 +23,9 @@ class MainActivity : AppCompatActivity() {
         
         tvDisplay = findViewById(R.id.tvDisplay)
         tvExpression = findViewById(R.id.tvExpression)
+        
+        // Гарантированно отключаем системную клавиатуру
+        tvDisplay.showSoftInputOnFocus = false
         
         tvExpression.text = ""
         renderDisplay()
@@ -37,90 +38,55 @@ class MainActivity : AppCompatActivity() {
             R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4, 
             R.id.btn5, R.id.btn6, R.id.btn7, R.id.btn8, R.id.btn9
         )
-        ids.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { appendDigit(i.toString()) } }
+        ids.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { insertText(i.toString()) } }
         
-        findViewById<View>(R.id.btnDecimal).setOnClickListener { appendDecimal() }
-        findViewById<View>(R.id.btnPlus).setOnClickListener { appendOperator(" + ") }
-        findViewById<View>(R.id.btnMinus).setOnClickListener { appendOperator(" − ") }
-        findViewById<View>(R.id.btnMultiply).setOnClickListener { appendOperator(" × ") }
-        findViewById<View>(R.id.btnDivide).setOnClickListener { appendOperator(" ÷ ") }
+        findViewById<View>(R.id.btnDecimal).setOnClickListener { insertText(".") }
+        findViewById<View>(R.id.btnPlus).setOnClickListener { insertText(" + ") }
+        findViewById<View>(R.id.btnMinus).setOnClickListener { insertText(" − ") }
+        findViewById<View>(R.id.btnMultiply).setOnClickListener { insertText(" × ") }
+        findViewById<View>(R.id.btnDivide).setOnClickListener { insertText(" ÷ ") }
         
         findViewById<View>(R.id.btnEquals).setOnClickListener { onEquals() }
         findViewById<View>(R.id.btnClear).setOnClickListener { onClear() }
         findViewById<View>(R.id.btnBackspace).setOnClickListener { onBackspace() }
-        findViewById<View>(R.id.btnPercent).setOnClickListener { appendPercent() }
+        findViewById<View>(R.id.btnPercent).setOnClickListener { insertText("%") }
+    }
+
+    private fun getCursorPos(): Int {
+        val sel = tvDisplay.selectionStart
+        return if (sel >= 0) sel else fullExpression.length
     }
 
     private fun checkErrorState() {
-        if (tvDisplay.text == "Fehler") {
-            onClear()
-        }
+        if (tvDisplay.text.toString() == "Fehler") onClear()
     }
 
-    private fun appendDigit(digit: String) {
+    // Универсальная функция вставки в место курсора
+    private fun insertText(text: String) {
         checkErrorState()
+        
         if (isResultShown) {
-            fullExpression = digit
+            fullExpression = if (text.contains(Regex("[0-9]"))) text else fullExpression + text
             isResultShown = false
-        } else {
-            val tokens = fullExpression.split(" ")
-            val lastToken = tokens.last().replace(",", "").replace(".", "")
-            if (lastToken.length >= MAX_DIGITS) return // Блокировка после 50 цифр
-
-            if (fullExpression == "0") {
-                fullExpression = digit
-            } else {
-                fullExpression += digit
-            }
+            renderDisplay(fullExpression.length)
+            return
         }
-        tvExpression.text = ""
-        renderDisplay()
-    }
 
-    private fun appendDecimal() {
-        checkErrorState()
-        if (isResultShown) {
-            fullExpression = "0."
-            isResultShown = false
-        } else {
-            val tokens = fullExpression.split(" ")
-            val lastToken = tokens.last()
-            
-            if (lastToken.contains(".")) return
-            
-            if (lastToken.isEmpty() || lastToken.matches(Regex(".*[+−×÷].*"))) {
-                fullExpression += "0."
-            } else {
-                fullExpression += "."
-            }
+        var pos = getCursorPos()
+        
+        // Если на экране только "0" и мы вводим цифру, заменяем этот ноль
+        if (fullExpression == "0" && text.matches(Regex("[0-9]"))) {
+            fullExpression = text
+            renderDisplay(text.length)
+            return
         }
-        tvExpression.text = ""
-        renderDisplay()
-    }
 
-    private fun appendOperator(op: String) {
-        checkErrorState()
-        if (isResultShown) {
-            fullExpression = tvDisplay.text.toString().replace(',', '.') + op
-            isResultShown = false
-        } else {
-            if (fullExpression.endsWith(" ")) {
-                fullExpression = fullExpression.dropLast(3) + op
-            } else {
-                fullExpression += op
-            }
-        }
-        tvExpression.text = ""
-        renderDisplay()
-    }
-
-    private fun appendPercent() {
-        checkErrorState()
-        val tokens = fullExpression.split(" ")
-        if (tokens.last().isNotEmpty() && !tokens.last().endsWith("%") && !fullExpression.endsWith(" ")) {
-            fullExpression += "%"
-            renderDisplay()
-        }
+        // Разрезаем строку по курсору и вставляем новый кусок
+        val before = fullExpression.substring(0, pos)
+        val after = fullExpression.substring(pos)
+        
+        fullExpression = before + text + after
+        renderDisplay(pos + text.length)
     }
 
     private fun onBackspace() {
@@ -130,38 +96,55 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        if (fullExpression.isNotEmpty() && fullExpression != "0") {
-            if (fullExpression.endsWith(" ")) {
-                fullExpression = fullExpression.dropLast(3)
-            } else {
-                fullExpression = fullExpression.dropLast(1)
+        val pos = getCursorPos()
+        if (pos == 0) return // Нечего удалять, курсор в самом начале
+
+        var charsToDelete = 1
+        
+        // Умное удаление: если перед курсором стоит оператор с пробелами, стираем его целиком (3 символа)
+        if (pos >= 3) {
+            val last3 = fullExpression.substring(pos - 3, pos)
+            if (last3 == " + " || last3 == " − " || last3 == " × " || last3 == " ÷ ") {
+                charsToDelete = 3
             }
-            
-            if (fullExpression.isEmpty()) {
-                fullExpression = "0"
-            }
-            renderDisplay()
         }
+
+        val before = fullExpression.substring(0, pos - charsToDelete)
+        val after = fullExpression.substring(pos)
+        
+        fullExpression = before + after
+        if (fullExpression.isEmpty()) fullExpression = "0"
+        
+        renderDisplay(pos - charsToDelete)
     }
 
-    private fun renderDisplay() {
-        val display = fullExpression.replace('.', ',')
-        tvDisplay.text = display
+    private fun renderDisplay(newCursorPos: Int? = null) {
+        val currentCursor = getCursorPos()
+        val displayStr = fullExpression.replace('.', ',')
+        
+        tvDisplay.setText(displayStr)
+        
+        val finalPos = newCursorPos ?: currentCursor
+        // Защита от выхода курсора за пределы строки
+        if (finalPos in 0..displayStr.length) {
+            tvDisplay.setSelection(finalPos)
+        } else {
+            tvDisplay.setSelection(displayStr.length)
+        }
     }
 
     private fun onEquals() {
         if (fullExpression.isEmpty() || isResultShown || fullExpression == "0") return
-        
         val cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
         
         try {
             val result = evaluate(cleanExpr)
             tvExpression.text = "$cleanExpr =" 
             fullExpression = formatResult(result)
-            renderDisplay() 
+            renderDisplay(fullExpression.length) 
             isResultShown = true
         } catch (e: Exception) {
-            tvDisplay.text = "Fehler"
+            tvDisplay.setText("Fehler")
             fullExpression = "0"
             isResultShown = true
         }
@@ -170,12 +153,12 @@ class MainActivity : AppCompatActivity() {
     private fun onClear() {
         fullExpression = "0"
         tvExpression.text = ""
-        tvDisplay.text = "0"
+        renderDisplay(1)
         isResultShown = false
     }
 
-    // Полностью новое математическое ядро на BigDecimal
     private fun evaluate(expr: String): BigDecimal {
+        // Парсер математики остался прежним (работает через BigDecimal)
         val tokens = expr.trim().split(" ").filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return BigDecimal.ZERO
         
@@ -184,18 +167,13 @@ class MainActivity : AppCompatActivity() {
         while (i < tokens.size) {
             val op = tokens[i]
             val nextStr = tokens.getOrNull(i + 1) ?: "0"
-            
             val isPercent = nextStr.endsWith("%")
             val cleanNextStr = nextStr.replace("%", "").replace(',', '.')
             var nextVal = try { BigDecimal(cleanNextStr) } catch(e: Exception) { BigDecimal.ZERO }
             
             if (isPercent) {
                 val percentDecimal = nextVal.divide(BigDecimal("100"), mathContext)
-                if (op == "+" || op == "−" || op == "-") {
-                    nextVal = result.multiply(percentDecimal, mathContext)
-                } else {
-                    nextVal = percentDecimal
-                }
+                nextVal = if (op == "+" || op == "−" || op == "-") result.multiply(percentDecimal, mathContext) else percentDecimal
             }
             
             result = when (op) {
@@ -221,7 +199,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun formatResult(v: BigDecimal): String {
-        // Убираем лишние нули в конце и переводим в строгий текстовый формат (без буквы E)
         var resultStr = v.stripTrailingZeros().toPlainString()
         if (resultStr == "0.0") resultStr = "0"
         return resultStr
