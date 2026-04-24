@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import java.math.BigDecimal
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvDisplay: TextView
@@ -11,6 +12,7 @@ class MainActivity : AppCompatActivity() {
     
     private var fullExpression = "0"
     private var isResultShown = false
+    private val MAX_DIGITS = 15 // Лимит цифр для одного числа
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,7 +47,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkErrorState() {
-        if (tvDisplay.text == "Ошибка") {
+        if (tvDisplay.text == "Fehler") {
             onClear()
         }
     }
@@ -56,6 +58,11 @@ class MainActivity : AppCompatActivity() {
             fullExpression = digit
             isResultShown = false
         } else {
+            // Проверка на лимит цифр в текущем числе
+            val tokens = fullExpression.split(" ")
+            val lastToken = tokens.last().replace(",", "").replace(".", "")
+            if (lastToken.length >= MAX_DIGITS) return // Блокируем ввод, если цифр слишком много
+
             if (fullExpression == "0") {
                 fullExpression = digit
             } else {
@@ -75,10 +82,8 @@ class MainActivity : AppCompatActivity() {
             val tokens = fullExpression.split(" ")
             val lastToken = tokens.last()
             
-            // Если в текущем числе уже есть точка, ничего не делаем (защита от 1.2.3)
             if (lastToken.contains(".")) return
             
-            // Если перед этим был знак или пустота, добавляем "0."
             if (lastToken.isEmpty() || lastToken.matches(Regex(".*[+−×÷].*"))) {
                 fullExpression += "0."
             } else {
@@ -95,7 +100,6 @@ class MainActivity : AppCompatActivity() {
             fullExpression = tvDisplay.text.toString().replace(',', '.') + op
             isResultShown = false
         } else {
-            // Защита от дублирования знаков: если в конце уже знак, меняем его на новый
             if (fullExpression.endsWith(" ")) {
                 fullExpression = fullExpression.dropLast(3) + op
             } else {
@@ -123,7 +127,6 @@ class MainActivity : AppCompatActivity() {
         }
         
         if (fullExpression.isNotEmpty() && fullExpression != "0") {
-            // Если удаляем знак операции, удаляем сразу 3 символа (" + ")
             if (fullExpression.endsWith(" ")) {
                 fullExpression = fullExpression.dropLast(3)
             } else {
@@ -145,7 +148,6 @@ class MainActivity : AppCompatActivity() {
     private fun onEquals() {
         if (fullExpression.isEmpty() || isResultShown || fullExpression == "0") return
         
-        // Если в конце завис знак математики без числа (например "5 + "), игнорируем его
         val cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
         
         try {
@@ -211,6 +213,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun formatResult(v: Double): String {
         if (v.isNaN() || v.isInfinite()) throw ArithmeticException("Invalid math")
-        return if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+        // Преобразуем число в чистую строку без экспоненты (буквы E)
+        return BigDecimal(v.toString()).stripTrailingZeros().toPlainString()
     }
 }
