@@ -13,6 +13,7 @@ import java.math.RoundingMode
 class MainActivity : AppCompatActivity() {
     private lateinit var tvDisplay: EditText
     private lateinit var tvExpression: TextView
+    private lateinit var tvPreview: TextView
     
     private var fullExpression = "0"
     private var isResultShown = false
@@ -25,10 +26,12 @@ class MainActivity : AppCompatActivity() {
         
         tvDisplay = findViewById(R.id.tvDisplay)
         tvExpression = findViewById(R.id.tvExpression)
+        tvPreview = findViewById(R.id.tvPreview)
         
         tvDisplay.showSoftInputOnFocus = false
         
         tvExpression.text = ""
+        tvPreview.text = ""
         renderDisplay()
         
         setupButtons()
@@ -69,6 +72,7 @@ class MainActivity : AppCompatActivity() {
             fullExpression = if (text.matches(Regex(".*[0-9].*"))) text else fullExpression + text
             isResultShown = false
             renderDisplay(fullExpression.length)
+            updatePreview()
             return
         }
 
@@ -77,6 +81,7 @@ class MainActivity : AppCompatActivity() {
         if (fullExpression == "0" && text.matches(Regex("[0-9]"))) {
             fullExpression = text
             renderDisplay(text.length)
+            updatePreview()
             return
         }
 
@@ -104,6 +109,7 @@ class MainActivity : AppCompatActivity() {
             if (lastToken.isEmpty()) {
                 fullExpression = before + "0." + after
                 renderDisplay(pos + 2)
+                updatePreview()
                 return
             }
         }
@@ -126,6 +132,7 @@ class MainActivity : AppCompatActivity() {
 
         fullExpression = before + text + after
         renderDisplay(pos + text.length)
+        updatePreview()
     }
 
     private fun onBackspace() {
@@ -153,14 +160,43 @@ class MainActivity : AppCompatActivity() {
         if (fullExpression.isEmpty()) fullExpression = "0"
         
         renderDisplay(pos - charsToDelete)
+        updatePreview()
     }
 
-    // Здесь мы жестко контролируем размер шрифта
+    // ТЕНЕВОЙ ВЫЧИСЛИТЕЛЬ: считает пример в реальном времени
+    private fun updatePreview() {
+        if (isResultShown || fullExpression == "0") {
+            tvPreview.text = ""
+            return
+        }
+
+        // Показываем предпросмотр, только если в строке есть математическое действие
+        val hasOperator = fullExpression.contains(" + ") || fullExpression.contains(" − ") || 
+                          fullExpression.contains(" × ") || fullExpression.contains(" ÷ ") || 
+                          fullExpression.contains("%")
+                          
+        if (!hasOperator) {
+            tvPreview.text = ""
+            return
+        }
+
+        var cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
+        if (cleanExpr.endsWith(".")) cleanExpr = cleanExpr.dropLast(1)
+        
+        try {
+            val result = evaluate(cleanExpr)
+            // Добавляем знак равно и меняем точки на запятые
+            tvPreview.text = "= " + formatResult(result).replace('.', ',')
+        } catch (e: Exception) {
+            // Если пример некорректный (например, деление на ноль в процессе), прячем предпросмотр
+            tvPreview.text = ""
+        }
+    }
+
     private fun renderDisplay(newCursorPos: Int? = null) {
         val currentCursor = getCursorPos()
         val displayStr = fullExpression.replace('.', ',')
         
-        // Масштабирование в зависимости от длины текста
         val len = displayStr.length
         when {
             len <= 8 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f)
@@ -189,10 +225,12 @@ class MainActivity : AppCompatActivity() {
             tvExpression.text = "${cleanExpr.replace('.', ',')} =" 
             fullExpression = formatResult(result)
             renderDisplay(fullExpression.length) 
+            tvPreview.text = "" // Убираем оранжевый предпросмотр, так как результат уже на основном экране
             isResultShown = true
         } catch (e: Exception) {
             tvDisplay.setText("Fehler")
             fullExpression = "0"
+            tvPreview.text = ""
             isResultShown = true
         }
     }
@@ -200,6 +238,7 @@ class MainActivity : AppCompatActivity() {
     private fun onClear() {
         fullExpression = "0"
         tvExpression.text = ""
+        tvPreview.text = ""
         renderDisplay(1)
         isResultShown = false
     }
