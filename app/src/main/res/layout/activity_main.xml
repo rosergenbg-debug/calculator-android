@@ -20,8 +20,9 @@
         android:paddingBottom="8dp"
         android:background="@null"
         android:cursorVisible="true"
-        android:inputType="textMultiLine|textNoSuggestions"
-        android:scrollHorizontally="false"
+        android:inputType="textNoSuggestions"
+        android:singleLine="true"
+        android:scrollHorizontally="true"
         android:textCursorDrawable="@drawable/red_cursor" />
 
     <TextView android:id="@+id/tvPreview"
