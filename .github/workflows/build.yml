@@ -2,8 +2,13 @@ name: Build APK
 
 on:
   push:
+    branches: [ "main", "fix/**" ]
+  pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -30,10 +35,11 @@ jobs:
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: gradle --no-daemon assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: calculator-apk
+          name: calculator-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

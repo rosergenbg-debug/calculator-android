@@ -14,224 +14,194 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvDisplay: EditText
     private lateinit var tvExpression: TextView
     private lateinit var tvPreview: TextView
-    
+
     private var fullExpression = "0"
     private var isResultShown = false
-    private val MAX_DIGITS = 50
+
+    private val maxDigits = 50
     private val mathContext = MathContext(30, RoundingMode.HALF_UP)
+    private val operators = setOf("+", "−", "×", "÷")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        
+
         tvDisplay = findViewById(R.id.tvDisplay)
         tvExpression = findViewById(R.id.tvExpression)
         tvPreview = findViewById(R.id.tvPreview)
-        
+
         tvDisplay.showSoftInputOnFocus = false
-        
+
         tvExpression.text = ""
         tvPreview.text = ""
         renderDisplay()
-        
+
         setupButtons()
     }
 
     private fun setupButtons() {
-        val ids = listOf(
-            R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4, 
+        listOf(
+            R.id.btn0, R.id.btn1, R.id.btn2, R.id.btn3, R.id.btn4,
             R.id.btn5, R.id.btn6, R.id.btn7, R.id.btn8, R.id.btn9
-        )
-        ids.forEachIndexed { i, id -> findViewById<View>(id).setOnClickListener { insertText(i.toString()) } }
-        
-        findViewById<View>(R.id.btnDecimal).setOnClickListener { insertText(".") }
-        findViewById<View>(R.id.btnPlus).setOnClickListener { insertText(" + ") }
-        findViewById<View>(R.id.btnMinus).setOnClickListener { insertText(" − ") }
-        findViewById<View>(R.id.btnMultiply).setOnClickListener { insertText(" × ") }
-        findViewById<View>(R.id.btnDivide).setOnClickListener { insertText(" ÷ ") }
-        
+        ).forEachIndexed { digit, id ->
+            findViewById<View>(id).setOnClickListener { insertDigit(digit.toString()) }
+        }
+
+        findViewById<View>(R.id.btnDecimal).setOnClickListener { insertDecimal() }
+        findViewById<View>(R.id.btnPlus).setOnClickListener { insertOperator("+") }
+        findViewById<View>(R.id.btnMinus).setOnClickListener { insertOperator("−") }
+        findViewById<View>(R.id.btnMultiply).setOnClickListener { insertOperator("×") }
+        findViewById<View>(R.id.btnDivide).setOnClickListener { insertOperator("÷") }
+
         findViewById<View>(R.id.btnEquals).setOnClickListener { onEquals() }
         findViewById<View>(R.id.btnClear).setOnClickListener { onClear() }
         findViewById<View>(R.id.btnBackspace).setOnClickListener { onBackspace() }
-        findViewById<View>(R.id.btnPercent).setOnClickListener { insertText("%") }
+        findViewById<View>(R.id.btnPercent).setOnClickListener { insertPercent() }
     }
 
     private fun getCursorPos(): Int {
         val sel = tvDisplay.selectionStart
-        return if (sel >= 0) sel else fullExpression.length
+        return if (sel >= 0) sel.coerceAtMost(fullExpression.length) else fullExpression.length
     }
 
-    private fun checkErrorState() {
-        if (tvDisplay.text.toString() == "Fehler") onClear()
-    }
+    private fun insertDigit(digit: String) {
+        clearErrorIfNeeded()
 
-    private fun insertText(text: String) {
-        checkErrorState()
-        
         if (isResultShown) {
-            fullExpression = if (text.matches(Regex(".*[0-9].*"))) text else fullExpression + text
+            fullExpression = digit
             isResultShown = false
-            renderDisplay(fullExpression.length)
+            tvExpression.text = ""
+            renderDisplay(1)
             updatePreview()
             return
         }
 
-        var pos = getCursorPos()
-        
-        if (fullExpression == "0" && text.matches(Regex("[0-9]"))) {
-            fullExpression = text
-            renderDisplay(text.length)
+        replaceSelection { before, after, pos ->
+            if (before.endsWith("%")) return
+
+            val number = currentNumber(before, after)
+            if (number.replace(".", "").replace("%", "").length >= maxDigits) return
+
+            val newBefore = if (fullExpression == "0" && before == "0" && after.isEmpty()) digit else before + digit
+            fullExpression = newBefore + after
+            renderDisplay(if (newBefore == digit && before == "0") 1 else pos + 1)
+            updatePreview()
+        }
+    }
+
+    private fun insertDecimal() {
+        clearErrorIfNeeded()
+
+        if (isResultShown) {
+            fullExpression = "0."
+            isResultShown = false
+            tvExpression.text = ""
+            renderDisplay(2)
             updatePreview()
             return
         }
 
-        var before = fullExpression.substring(0, pos)
-        val after = fullExpression.substring(pos)
-        
-        if (text.contains(" ")) { 
-            if (before.endsWith(" ")) {
-                before = before.dropLast(3)
-                pos -= 3
-            }
-            if (before.endsWith(".")) {
-                before = before.dropLast(1)
-                pos -= 1
-            }
-            if (before.isEmpty()) {
-                before = "0"
-                pos = 1
-            }
-        }
-        
-        if (text == ".") {
-            val lastToken = before.split(" ").last()
-            if (lastToken.contains(".")) return
-            if (lastToken.isEmpty()) {
+        replaceSelection { before, after, pos ->
+            if (before.endsWith("%")) return
+
+            val number = currentNumber(before, after)
+            if (number.contains(".")) return
+
+            if (number.isEmpty()) {
                 fullExpression = before + "0." + after
                 renderDisplay(pos + 2)
-                updatePreview()
-                return
+            } else {
+                fullExpression = before + "." + after
+                renderDisplay(pos + 1)
             }
+            updatePreview()
+        }
+    }
+
+    private fun insertOperator(operator: String) {
+        clearErrorIfNeeded()
+
+        if (isResultShown) {
+            isResultShown = false
+            tvExpression.text = ""
         }
 
-        if (text == "%") {
-            val lastToken = before.split(" ").last()
-            if (lastToken.isEmpty() || lastToken.contains("%")) return
-            if (before.endsWith(".")) {
-                before = before.dropLast(1)
-                pos -= 1
+        replaceSelection { before, after, pos ->
+            var newBefore = before
+            var newPos = pos
+
+            if (newBefore.endsWith(" ")) {
+                newBefore = newBefore.dropLast(3)
+                newPos -= 3
             }
+            if (newBefore.endsWith(".")) {
+                newBefore = newBefore.dropLast(1)
+                newPos -= 1
+            }
+            if (newBefore.isEmpty()) {
+                newBefore = "0"
+                newPos = 1
+            }
+
+            fullExpression = newBefore + " $operator " + after.trimStart()
+            renderDisplay(newPos + 3)
+            updatePreview()
         }
-        
-        if (text.matches(Regex("[0-9]"))) {
-            val lastTokenBefore = before.split(" ").last()
-            val firstTokenAfter = after.split(" ").firstOrNull() ?: ""
-            val fullCurrentNumber = (lastTokenBefore + firstTokenAfter).replace(".", "").replace("%", "")
-            if (fullCurrentNumber.length >= MAX_DIGITS) return
+    }
+
+    private fun insertPercent() {
+        clearErrorIfNeeded()
+        if (isResultShown) {
+            isResultShown = false
+            tvExpression.text = ""
         }
 
-        fullExpression = before + text + after
-        renderDisplay(pos + text.length)
-        updatePreview()
+        replaceSelection { before, after, pos ->
+            val number = currentNumber(before, after)
+            if (number.isEmpty() || number.endsWith("%")) return
+
+            val newBefore = if (before.endsWith(".")) before.dropLast(1) else before
+            val cursorShift = if (before.endsWith(".")) 0 else 1
+            fullExpression = newBefore + "%" + after
+            renderDisplay(pos + cursorShift)
+            updatePreview()
+        }
     }
 
     private fun onBackspace() {
-        checkErrorState()
+        clearErrorIfNeeded()
         if (isResultShown) {
             onClear()
             return
         }
-        
+
         val pos = getCursorPos()
-        if (pos == 0) return 
+        if (pos == 0) return
 
-        var charsToDelete = 1
-        if (pos >= 3) {
-            val last3 = fullExpression.substring(pos - 3, pos)
-            if (last3 == " + " || last3 == " − " || last3 == " × " || last3 == " ÷ ") {
-                charsToDelete = 3
-            }
-        }
-
+        val charsToDelete = if (pos >= 3 && fullExpression.substring(pos - 3, pos).isOperatorToken()) 3 else 1
         val before = fullExpression.substring(0, pos - charsToDelete)
         val after = fullExpression.substring(pos)
-        
-        fullExpression = before + after
-        if (fullExpression.isEmpty()) fullExpression = "0"
-        
-        renderDisplay(pos - charsToDelete)
+
+        fullExpression = (before + after).ifEmpty { "0" }
+        renderDisplay((pos - charsToDelete).coerceAtLeast(0))
         updatePreview()
     }
 
-    // ТЕНЕВОЙ ВЫЧИСЛИТЕЛЬ: считает пример в реальном времени
-    private fun updatePreview() {
-        if (isResultShown || fullExpression == "0") {
-            tvPreview.text = ""
-            return
-        }
-
-        // Показываем предпросмотр, только если в строке есть математическое действие
-        val hasOperator = fullExpression.contains(" + ") || fullExpression.contains(" − ") || 
-                          fullExpression.contains(" × ") || fullExpression.contains(" ÷ ") || 
-                          fullExpression.contains("%")
-                          
-        if (!hasOperator) {
-            tvPreview.text = ""
-            return
-        }
-
-        var cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
-        if (cleanExpr.endsWith(".")) cleanExpr = cleanExpr.dropLast(1)
-        
-        try {
-            val result = evaluate(cleanExpr)
-            // Добавляем знак равно и меняем точки на запятые
-            tvPreview.text = "= " + formatResult(result).replace('.', ',')
-        } catch (e: Exception) {
-            // Если пример некорректный (например, деление на ноль в процессе), прячем предпросмотр
-            tvPreview.text = ""
-        }
-    }
-
-    private fun renderDisplay(newCursorPos: Int? = null) {
-        val currentCursor = getCursorPos()
-        val displayStr = fullExpression.replace('.', ',')
-        
-        val len = displayStr.length
-        when {
-            len <= 8 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 64f)
-            len <= 15 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 48f)
-            len <= 25 -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 36f)
-            else -> tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-        }
-        
-        tvDisplay.setText(displayStr)
-        
-        val finalPos = newCursorPos ?: currentCursor
-        if (finalPos in 0..displayStr.length) {
-            tvDisplay.setSelection(finalPos)
-        } else {
-            tvDisplay.setSelection(displayStr.length)
-        }
-    }
-
     private fun onEquals() {
-        if (fullExpression.isEmpty() || isResultShown || fullExpression == "0") return
-        var cleanExpr = if (fullExpression.endsWith(" ")) fullExpression.dropLast(3) else fullExpression
-        if (cleanExpr.endsWith(".")) cleanExpr = cleanExpr.dropLast(1)
-        
+        if (fullExpression == "0" || isResultShown) return
+
+        val cleanExpr = fullExpression.normalizedForEvaluation()
+        if (cleanExpr.isBlank()) return
+
         try {
             val result = evaluate(cleanExpr)
-            tvExpression.text = "${cleanExpr.replace('.', ',')} =" 
+            tvExpression.text = "${cleanExpr.replace('.', ',')} ="
             fullExpression = formatResult(result)
-            renderDisplay(fullExpression.length) 
-            tvPreview.text = "" // Убираем оранжевый предпросмотр, так как результат уже на основном экране
-            isResultShown = true
-        } catch (e: Exception) {
-            tvDisplay.setText("Fehler")
-            fullExpression = "0"
+            renderDisplay(fullExpression.length)
             tvPreview.text = ""
             isResultShown = true
+        } catch (e: Exception) {
+            showError()
         }
     }
 
@@ -243,49 +213,161 @@ class MainActivity : AppCompatActivity() {
         isResultShown = false
     }
 
+    private fun updatePreview() {
+        if (isResultShown || fullExpression == "0" || !fullExpression.hasMathAction()) {
+            tvPreview.text = ""
+            return
+        }
+
+        val cleanExpr = fullExpression.normalizedForEvaluation()
+        if (cleanExpr.isBlank() || cleanExpr == "0") {
+            tvPreview.text = ""
+            return
+        }
+
+        try {
+            tvPreview.text = "= " + formatResult(evaluate(cleanExpr)).replace('.', ',')
+        } catch (e: Exception) {
+            tvPreview.text = ""
+        }
+    }
+
+    private fun renderDisplay(newCursorPos: Int? = null) {
+        val currentCursor = getCursorPos()
+        val displayStr = fullExpression.replace('.', ',')
+
+        val textSize = when {
+            displayStr.length <= 8 -> 64f
+            displayStr.length <= 15 -> 48f
+            displayStr.length <= 25 -> 36f
+            else -> 28f
+        }
+        tvDisplay.setTextSize(TypedValue.COMPLEX_UNIT_SP, textSize)
+        tvDisplay.setText(displayStr)
+
+        val finalPos = (newCursorPos ?: currentCursor).coerceIn(0, displayStr.length)
+        tvDisplay.setSelection(finalPos)
+    }
+
     private fun evaluate(expr: String): BigDecimal {
-        val tokens = expr.trim().split(" ").filter { it.isNotEmpty() }
+        val tokens = expr.split(" ").filter { it.isNotBlank() }
         if (tokens.isEmpty()) return BigDecimal.ZERO
-        
-        var result = parseFirstToken(tokens[0])
-        var i = 1
-        while (i < tokens.size) {
-            val op = tokens[i]
-            val nextStr = tokens.getOrNull(i + 1) ?: "0"
-            val isPercent = nextStr.endsWith("%")
-            val cleanNextStr = nextStr.replace("%", "").replace(',', '.')
-            var nextVal = try { BigDecimal(cleanNextStr) } catch(e: Exception) { BigDecimal.ZERO }
-            
-            if (isPercent) {
-                val percentDecimal = nextVal.divide(BigDecimal("100"), mathContext)
-                nextVal = if (op == "+" || op == "−" || op == "-") result.multiply(percentDecimal, mathContext) else percentDecimal
+        if (tokens.last() in operators) throw IllegalArgumentException("Expression ends with operator")
+
+        val values = mutableListOf<NumberToken>()
+        val ops = mutableListOf<String>()
+
+        var index = 0
+        while (index < tokens.size) {
+            val token = tokens[index]
+            if (index % 2 == 0) {
+                values.add(parseNumberToken(token))
+            } else {
+                if (token !in operators) throw IllegalArgumentException("Unknown operator")
+                ops.add(token)
             }
-            
-            result = when (op) {
-                "+" -> result.add(nextVal, mathContext)
-                "−", "-" -> result.subtract(nextVal, mathContext)
-                "×", "*" -> result.multiply(nextVal, mathContext)
-                "÷", "/" -> {
-                    if (nextVal.compareTo(BigDecimal.ZERO) == 0) throw ArithmeticException("Div by zero")
-                    result.divide(nextVal, mathContext)
-                }
-                else -> result
+            index++
+        }
+
+        var i = 0
+        while (i < ops.size) {
+            val op = ops[i]
+            if (op == "×" || op == "÷") {
+                val left = values[i].asStandaloneValue()
+                val right = values[i + 1].asStandaloneValue()
+                values[i] = NumberToken(applyOperator(left, right, op), false)
+                values.removeAt(i + 1)
+                ops.removeAt(i)
+            } else {
+                i++
             }
-            i += 2
+        }
+
+        var result = values.first().asStandaloneValue()
+        ops.forEachIndexed { opIndex, op ->
+            val token = values[opIndex + 1]
+            val right = if (token.isPercent) {
+                result.multiply(token.percentDecimal(), mathContext)
+            } else {
+                token.value
+            }
+            result = applyOperator(result, right, op)
         }
         return result
     }
 
-    private fun parseFirstToken(token: String): BigDecimal {
+    private fun parseNumberToken(token: String): NumberToken {
+        if (token.count { it == '%' } > 1) throw NumberFormatException("Too many percent signs")
+
         val isPercent = token.endsWith("%")
-        val clean = token.replace("%", "").replace(',', '.')
-        val v = try { BigDecimal(clean) } catch(e: Exception) { BigDecimal.ZERO }
-        return if (isPercent) v.divide(BigDecimal("100"), mathContext) else v
+        val clean = token.removeSuffix("%").replace(',', '.')
+        if (clean.isBlank() || clean == ".") throw NumberFormatException("Invalid number")
+
+        return NumberToken(BigDecimal(clean), isPercent)
     }
 
-    private fun formatResult(v: BigDecimal): String {
-        var resultStr = v.stripTrailingZeros().toPlainString()
-        if (resultStr == "0.0") resultStr = "0"
-        return resultStr
+    private fun applyOperator(left: BigDecimal, right: BigDecimal, operator: String): BigDecimal {
+        return when (operator) {
+            "+" -> left.add(right, mathContext)
+            "−" -> left.subtract(right, mathContext)
+            "×" -> left.multiply(right, mathContext)
+            "÷" -> {
+                if (right.compareTo(BigDecimal.ZERO) == 0) throw ArithmeticException("Division by zero")
+                left.divide(right, mathContext)
+            }
+            else -> throw IllegalArgumentException("Unknown operator")
+        }
+    }
+
+    private inline fun replaceSelection(block: (before: String, after: String, pos: Int) -> Unit) {
+        val pos = getCursorPos()
+        block(fullExpression.substring(0, pos), fullExpression.substring(pos), pos)
+    }
+
+    private fun currentNumber(before: String, after: String): String {
+        val left = before.substringAfterLast(" ")
+        val right = after.substringBefore(" ")
+        return left + right
+    }
+
+    private fun clearErrorIfNeeded() {
+        if (tvDisplay.text.toString() == "Fehler") onClear()
+    }
+
+    private fun showError() {
+        tvDisplay.setText("Fehler")
+        fullExpression = "0"
+        tvPreview.text = ""
+        isResultShown = true
+    }
+
+    private fun formatResult(value: BigDecimal): String {
+        val normalized = value.stripTrailingZeros()
+        return if (normalized.compareTo(BigDecimal.ZERO) == 0) "0" else normalized.toPlainString()
+    }
+
+    private fun String.isOperatorToken(): Boolean {
+        return this.length == 3 && this.first() == ' ' && this.last() == ' ' && this.trim() in operators
+    }
+
+    private fun String.hasMathAction(): Boolean {
+        return contains(" + ") || contains(" − ") || contains(" × ") || contains(" ÷ ") || contains("%")
+    }
+
+    private fun String.normalizedForEvaluation(): String {
+        var clean = trim()
+        if (clean.endsWith("+") || clean.endsWith("−") || clean.endsWith("×") || clean.endsWith("÷")) {
+            clean = clean.dropLast(1).trim()
+        }
+        if (clean.endsWith(".")) clean = clean.dropLast(1)
+        return clean
+    }
+
+    private data class NumberToken(val value: BigDecimal, val isPercent: Boolean) {
+        fun percentDecimal(): BigDecimal = value.divide(BigDecimal("100"), MathContext(30, RoundingMode.HALF_UP))
+
+        fun asStandaloneValue(): BigDecimal {
+            return if (isPercent) percentDecimal() else value
+        }
     }
 }
