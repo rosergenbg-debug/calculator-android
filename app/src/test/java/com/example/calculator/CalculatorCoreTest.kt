@@ -7,12 +7,14 @@ import org.junit.Test
 class CalculatorCoreTest {
     @Test
     fun digitReplacesInitialZero() {
+        assertEdit("1", 1, ExpressionEditor.insertDigit("0", 0, '1', 50))
         assertEdit("7", 1, ExpressionEditor.insertDigit("0", 1, '7', 50))
         assertEdit("0", 1, ExpressionEditor.insertDigit("0", 1, '0', 50))
     }
 
     @Test
     fun digitReplacesZeroAfterOperator() {
+        assertEdit("5 + 3", 5, ExpressionEditor.insertDigit("5 + 0", 4, '3', 50))
         assertEdit("5 + 3", 5, ExpressionEditor.insertDigit("5 + 0", 5, '3', 50))
         assertEdit("5 + 0", 5, ExpressionEditor.insertDigit("5 + 0", 5, '0', 50))
     }
