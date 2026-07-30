@@ -7,6 +7,14 @@
     android:background="#1C1C1E"
     android:padding="16dp">
 
+    <TextView
+        android:id="@+id/tvVersion"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:textColor="#5A5A5E"
+        android:textSize="10sp" />
+
     <TextView android:id="@+id/tvExpression"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:textColor="#8E8E93" android:textSize="24sp"
@@ -64,4 +72,15 @@
         <Button android:id="@+id/btnDecimal" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="," android:backgroundTint="#333333" android:textColor="#FFF" android:textSize="32sp" android:layout_margin="4dp" android:insetBottom="0dp" android:insetTop="0dp"/>
         <Button android:id="@+id/btnEquals" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="=" android:backgroundTint="#FF9F0A" android:textColor="#FFF" android:textSize="32sp" android:layout_margin="4dp" android:insetBottom="0dp" android:insetTop="0dp"/>
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvAuthorEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:paddingTop="2dp"
+        android:textColor="#6B7C93"
+        android:textSize="9sp" />
 </LinearLayout>

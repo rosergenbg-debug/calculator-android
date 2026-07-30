@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Calculator</string>
+    <string name="version_label">Version %1$s</string>
+    <string name="contact_email">roserge.nbg@gmail.com</string>
+    <string name="author_signature">© Serge Rosberg · %1$s</string>
+    <string name="email_subject">Taschenrechner für Android</string>
 </resources>
