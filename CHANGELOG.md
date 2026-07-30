@@ -19,6 +19,7 @@
 - Öffentliche Projektbeschreibung ergänzt.
 - Kleine Versionsanzeige oben ergänzt.
 - Klickbare Signatur von Serge Rosberg mit Kontaktadresse am unteren Rand ergänzt.
+- Dauerhafte Release-Signierung für zukünftige, direkt installierbare Updates vorbereitet.
 
 ## 1.x – April bis Mai 2026
 
