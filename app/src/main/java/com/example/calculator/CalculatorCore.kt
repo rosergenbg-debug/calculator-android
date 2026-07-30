@@ -19,6 +19,14 @@ internal object ExpressionEditor {
         val localCursor = (safeCursor - bounds.first).coerceIn(0, token.length)
         if (token.endsWith("%") && localCursor == token.length) return EditResult(expression, safeCursor)
 
+        // A single zero is a placeholder for the current number. Replace it
+        // regardless of whether Android placed the cursor before or after it.
+        if (token == "0") {
+            val replacement = digit.toString()
+            val updated = expression.replaceRange(bounds.first, bounds.second, replacement)
+            return EditResult(updated, bounds.first + replacement.length)
+        }
+
         val candidate = token.substring(0, localCursor) + digit + token.substring(localCursor)
         if (candidate.count(Char::isDigit) > maxDigits) return EditResult(expression, safeCursor)
 
