@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
 
         tvExpression.text = ""
         tvPreview.text = ""
-        renderDisplay()
+        renderDisplay(fullExpression.length)
 
         setupButtons()
     }
